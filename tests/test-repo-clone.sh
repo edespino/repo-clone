@@ -119,6 +119,24 @@ assert_contains "--repos multi selects second" "Common Utils" "$output"
 output=$("$REPO_ROOT/repo-clone.sh" --repos "Nonexistent Repo" "$FIXTURES/catalog-valid.txt" 2>&1) || true
 assert_contains "--repos invalid name shows error" "Error: No repo found matching name" "$output"
 
+# --repos by number + dry-run
+output=$("$REPO_ROOT/repo-clone.sh" --dry-run --repos "1" "$FIXTURES/catalog-valid.txt" 2>&1)
+assert_contains "--repos by number selects correct repo" "Build Pipeline" "$output"
+
+# --repos by multiple numbers + dry-run
+output=$("$REPO_ROOT/repo-clone.sh" --dry-run --repos "1,3" "$FIXTURES/catalog-valid.txt" 2>&1)
+assert_contains "--repos multi numbers selects first" "Build Pipeline" "$output"
+assert_contains "--repos multi numbers selects third" "Common Utils" "$output"
+
+# --repos mix of numbers and names + dry-run
+output=$("$REPO_ROOT/repo-clone.sh" --dry-run --repos "1,Common Utils" "$FIXTURES/catalog-valid.txt" 2>&1)
+assert_contains "--repos mixed selects by number" "Build Pipeline" "$output"
+assert_contains "--repos mixed selects by name" "Common Utils" "$output"
+
+# --repos invalid number (out of range)
+output=$("$REPO_ROOT/repo-clone.sh" --repos "99" "$FIXTURES/catalog-valid.txt" 2>&1) || true
+assert_contains "--repos invalid number shows error" "Error: Invalid repo number" "$output"
+
 # --repos without value
 output=$("$REPO_ROOT/repo-clone.sh" --repos 2>&1) || true
 assert_contains "--repos without value shows error" "Error:" "$output"

@@ -143,20 +143,34 @@ SELECTED=()
 
 resolve_repo_filter() {
     local filter="$1"
+    local max="${#REPO_NAMES[@]}"
     local found_any=false
 
-    # Split comma-separated names into an array
-    IFS=',' read -ra filter_names <<< "$filter"
+    # Split comma-separated tokens into an array
+    IFS=',' read -ra filter_tokens <<< "$filter"
 
-    for fname in "${filter_names[@]}"; do
+    for token in "${filter_tokens[@]}"; do
         # Trim whitespace
-        fname="${fname#"${fname%%[![:space:]]*}"}"
-        fname="${fname%"${fname##*[![:space:]]}"}"
-        [[ -z "$fname" ]] && continue
+        token="${token#"${token%%[![:space:]]*}"}"
+        token="${token%"${token##*[![:space:]]}"}"
+        [[ -z "$token" ]] && continue
 
+        # Check if token is a number (1-based index)
+        if [[ "$token" =~ ^[0-9]+$ ]]; then
+            if [[ "$token" -lt 1 || "$token" -gt "$max" ]]; then
+                echo "Error: Invalid repo number: $token (must be 1-$max)" >&2
+                echo "Use --list to see available repos." >&2
+                exit 1
+            fi
+            SELECTED+=("$((token - 1))")
+            found_any=true
+            continue
+        fi
+
+        # Otherwise match by display name
         local matched=false
         for i in "${!REPO_NAMES[@]}"; do
-            if [[ "${REPO_NAMES[$i]}" == "$fname" ]]; then
+            if [[ "${REPO_NAMES[$i]}" == "$token" ]]; then
                 SELECTED+=("$i")
                 matched=true
                 found_any=true
@@ -165,7 +179,7 @@ resolve_repo_filter() {
         done
 
         if [[ "$matched" == false ]]; then
-            echo "Error: No repo found matching name: $fname" >&2
+            echo "Error: No repo found matching name: $token" >&2
             echo "Use --list to see available repo names." >&2
             exit 1
         fi
@@ -276,13 +290,14 @@ Catalog source can be:
 Options:
   --dry-run          Preview what would be cloned without making changes
   --list             List available repos from the catalog and exit
-  --repos name,...   Clone only the specified repos (comma-separated display names)
+  --repos val,...    Clone only the specified repos (comma-separated numbers or names)
   --help             Show this help message
   --version          Show version
 
 Examples:
   repo-clone.sh --list catalog.txt
   repo-clone.sh --repos "Build Pipeline,Common Utils" catalog.txt
+  repo-clone.sh --repos "1,3" catalog.txt
   repo-clone.sh --dry-run --repos "Build Pipeline" catalog.txt
 EOF
     exit "${1:-0}"
