@@ -92,6 +92,38 @@ output=$("$REPO_ROOT/repo-clone.sh" --test-parse "$FIXTURES/catalog-empty.txt" 2
 assert_contains "empty catalog shows error" "Error:" "$output"
 
 echo ""
+echo "=== --list Flag ==="
+
+# --list shows menu and exits
+output=$("$REPO_ROOT/repo-clone.sh" --list "$FIXTURES/catalog-valid.txt" 2>&1)
+assert_contains "--list shows infra category" "[infra]" "$output"
+assert_contains "--list shows libs category" "[libs]" "$output"
+assert_contains "--list shows Build Pipeline" "Build Pipeline" "$output"
+assert_contains "--list shows Common Utils" "Common Utils" "$output"
+assert_contains "--list shows branch info" "(branch: staging)" "$output"
+
+echo ""
+echo "=== --repos Flag ==="
+
+# --repos with valid name + dry-run
+output=$("$REPO_ROOT/repo-clone.sh" --dry-run --repos "Build Pipeline" "$FIXTURES/catalog-valid.txt" 2>&1)
+assert_contains "--repos selects correct repo" "Build Pipeline" "$output"
+assert_contains "--repos dry-run works" "[dry-run]" "$output"
+
+# --repos with multiple names + dry-run
+output=$("$REPO_ROOT/repo-clone.sh" --dry-run --repos "Build Pipeline,Common Utils" "$FIXTURES/catalog-valid.txt" 2>&1)
+assert_contains "--repos multi selects first" "Build Pipeline" "$output"
+assert_contains "--repos multi selects second" "Common Utils" "$output"
+
+# --repos with invalid name
+output=$("$REPO_ROOT/repo-clone.sh" --repos "Nonexistent Repo" "$FIXTURES/catalog-valid.txt" 2>&1) || true
+assert_contains "--repos invalid name shows error" "Error: No repo found matching name" "$output"
+
+# --repos without value
+output=$("$REPO_ROOT/repo-clone.sh" --repos 2>&1) || true
+assert_contains "--repos without value shows error" "Error:" "$output"
+
+echo ""
 echo "=== Summary ==="
 echo "Passed: $PASS"
 echo "Failed: $FAIL"

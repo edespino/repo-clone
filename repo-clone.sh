@@ -4,6 +4,8 @@ set -euo pipefail
 VERSION="1.0.0"
 CLONE_DIR="$HOME/workspace"
 DRY_RUN=false
+LIST_ONLY=false
+FILTER_REPOS=""
 
 # Catalog data arrays (parallel arrays — index N in each corresponds to the same entry)
 REPO_NAMES=()
@@ -139,6 +141,42 @@ read_selection() {
 
 SELECTED=()
 
+resolve_repo_filter() {
+    local filter="$1"
+    local found_any=false
+
+    # Split comma-separated names into an array
+    IFS=',' read -ra filter_names <<< "$filter"
+
+    for fname in "${filter_names[@]}"; do
+        # Trim whitespace
+        fname="${fname#"${fname%%[![:space:]]*}"}"
+        fname="${fname%"${fname##*[![:space:]]}"}"
+        [[ -z "$fname" ]] && continue
+
+        local matched=false
+        for i in "${!REPO_NAMES[@]}"; do
+            if [[ "${REPO_NAMES[$i]}" == "$fname" ]]; then
+                SELECTED+=("$i")
+                matched=true
+                found_any=true
+                break
+            fi
+        done
+
+        if [[ "$matched" == false ]]; then
+            echo "Error: No repo found matching name: $fname" >&2
+            echo "Use --list to see available repo names." >&2
+            exit 1
+        fi
+    done
+
+    if [[ "$found_any" == false ]]; then
+        echo "Error: No repo names provided to --repos." >&2
+        exit 1
+    fi
+}
+
 derive_repo_dir() {
     local url="$1"
     # git@github.com:org/repo-name.git -> repo-name
@@ -229,16 +267,23 @@ check_ssh_agent() {
 
 usage() {
     cat <<'EOF'
-Usage: repo-clone.sh [--dry-run] <catalog-source>
+Usage: repo-clone.sh [options] <catalog-source>
 
 Catalog source can be:
   Local file:   repo-clone.sh /path/to/catalog.txt
   Remote repo:  repo-clone.sh git@github.com:org/repo.git path/to/catalog.txt
 
 Options:
-  --dry-run   Preview what would be cloned without making changes
-  --help      Show this help message
-  --version   Show version
+  --dry-run          Preview what would be cloned without making changes
+  --list             List available repos from the catalog and exit
+  --repos name,...   Clone only the specified repos (comma-separated display names)
+  --help             Show this help message
+  --version          Show version
+
+Examples:
+  repo-clone.sh --list catalog.txt
+  repo-clone.sh --repos "Build Pipeline,Common Utils" catalog.txt
+  repo-clone.sh --dry-run --repos "Build Pipeline" catalog.txt
 EOF
     exit "${1:-0}"
 }
@@ -247,6 +292,13 @@ EOF
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run) DRY_RUN=true; shift ;;
+        --list) LIST_ONLY=true; shift ;;
+        --repos)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --repos requires a comma-separated list of repo names." >&2
+                exit 1
+            fi
+            FILTER_REPOS="$2"; shift 2 ;;
         --help) usage 0 ;;
         --version) echo "repo-clone $VERSION"; exit 0 ;;
         --test-parse)
@@ -312,8 +364,17 @@ if [[ ${#REPO_NAMES[@]} -eq 0 ]]; then
     exit 1
 fi
 
-display_menu
-read_selection "${#REPO_NAMES[@]}"
+if [[ "$LIST_ONLY" == true ]]; then
+    display_menu
+    exit 0
+fi
+
+if [[ -n "$FILTER_REPOS" ]]; then
+    resolve_repo_filter "$FILTER_REPOS"
+else
+    display_menu
+    read_selection "${#REPO_NAMES[@]}"
+fi
 
 echo ""
 if [[ "$DRY_RUN" == false ]]; then
