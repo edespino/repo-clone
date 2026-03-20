@@ -1,0 +1,5 @@
+# Full line comment
+[tools]
+# Inline section comment
+My Tool|git@github.com:org/my-tool.git
+

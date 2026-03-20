@@ -1,0 +1,7 @@
+# A comment
+[infra]
+Build Pipeline|git@github.com:org/build-pipeline.git
+Deploy Tool|git@github.com:org/deploy-tool.git|staging
+
+[libs]
+Common Utils|git@github.com:org/common-utils.git
