@@ -308,9 +308,9 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run) DRY_RUN=true; shift ;;
         --list) LIST_ONLY=true; shift ;;
-        --repos)
+        --repo|--repos)
             if [[ $# -lt 2 ]]; then
-                echo "Error: --repos requires a comma-separated list of repo names." >&2
+                echo "Error: $1 requires a comma-separated list of repo numbers or names." >&2
                 exit 1
             fi
             FILTER_REPOS="$2"; shift 2 ;;
