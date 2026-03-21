@@ -108,14 +108,14 @@ This works with private repos as long as your SSH agent has access. The temporar
 
 ## CDN Caching
 
-When running via `curl` from GitHub's raw URL, responses are served through a CDN that caches files for up to 5 minutes. If you've just pushed changes and need the latest version immediately, append a unique query parameter to bypass the cache:
+When running via `curl` from GitHub's raw URL, responses are served through a CDN that may cache files. If you've just pushed changes and need the latest version immediately, reference the commit SHA instead of the branch name:
 
 ```bash
-curl -sL "https://raw.githubusercontent.com/edespino/repo-clone/main/repo-clone.sh?$(date +%s)" \
+curl -sL "https://raw.githubusercontent.com/edespino/repo-clone/<commit-sha>/repo-clone.sh" \
   | bash -s -- --help
 ```
 
-The `$(date +%s)` generates a unique Unix timestamp on each invocation. The server ignores the query parameter but the CDN treats it as an uncached URL. This is only needed right after pushing — under normal use the standard URL works fine.
+The SHA points to an immutable object that is never stale. This is only needed during development right after pushing — under normal use the `main` branch URL works fine.
 
 ## Running Tests
 
