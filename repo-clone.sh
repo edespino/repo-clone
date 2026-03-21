@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="1.0.0"
+VERSION="1.1"
 CLONE_DIR="$HOME/workspace"
 DRY_RUN=false
 LIST_ONLY=false
