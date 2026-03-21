@@ -72,8 +72,13 @@ Each line: `display_name|ssh_clone_url` or `display_name|ssh_clone_url|branch`
 | Flag | Description |
 |------|-------------|
 | `--dry-run` | Preview what would be cloned without making changes |
+| `--list` | List available repos from the catalog and exit |
+| `--repos val,...` | Clone specific repos by number or display name (comma-separated) |
+| `--group name,...` | Clone all repos in the specified groups (comma-separated category names) |
 | `--help` | Show usage information |
 | `--version` | Show version number |
+
+`--repo` is accepted as an alias for `--repos`. Numbers correspond to positions shown by `--list`. Flags can appear before or after positional arguments.
 
 ## Prerequisites
 
@@ -100,6 +105,17 @@ When the catalog source matches `git@*:*.git`, the script treats it as a remote 
 ```
 
 This works with private repos as long as your SSH agent has access. The temporary clone is cleaned up automatically.
+
+## CDN Caching
+
+When running via `curl` from GitHub's raw URL, responses are served through a CDN that caches files for up to 5 minutes. If you've just pushed changes and need the latest version immediately, append a unique query parameter to bypass the cache:
+
+```bash
+curl -sL "https://raw.githubusercontent.com/edespino/repo-clone/main/repo-clone.sh?$(date +%s)" \
+  | bash -s -- --help
+```
+
+The `$(date +%s)` generates a unique Unix timestamp on each invocation. The server ignores the query parameter but the CDN treats it as an uncached URL. This is only needed right after pushing — under normal use the standard URL works fine.
 
 ## Running Tests
 
