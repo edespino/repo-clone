@@ -326,8 +326,8 @@ Catalog source can be:
 Options:
   --dry-run            Preview what would be cloned without making changes
   --list               List available repos from the catalog and exit
-  --repos val,...      Clone specific repos by number or display name (comma-separated)
-  --group name,...     Clone all repos in the specified groups (comma-separated)
+  --repos val,...      Clone specific repos by number or name (comma-separated)
+  --groups name,...    Clone all repos in the specified groups (comma-separated)
   --help               Show this help message
   --version            Show version
 
@@ -335,8 +335,8 @@ Examples:
   repo-clone.sh --list catalog.txt
   repo-clone.sh --repos "Build Pipeline,Common Utils" catalog.txt
   repo-clone.sh --repos "1,3" catalog.txt
-  repo-clone.sh --group synx catalog.txt
-  repo-clone.sh --dry-run --group "synx,personal" catalog.txt
+  repo-clone.sh --groups synx catalog.txt
+  repo-clone.sh --dry-run --groups "synx,personal" catalog.txt
   repo-clone.sh --dry-run --repos "Build Pipeline" catalog.txt
 EOF
     exit "${1:-0}"
@@ -348,15 +348,15 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run) DRY_RUN=true; shift ;;
         --list) LIST_ONLY=true; shift ;;
-        --repo|--repos)
+        --repos)
             if [[ $# -lt 2 ]]; then
-                echo "Error: $1 requires a comma-separated list of repo numbers or names." >&2
+                echo "Error: --repos requires a comma-separated list of repo numbers or names." >&2
                 exit 1
             fi
             FILTER_REPOS="$2"; shift 2 ;;
-        --group)
+        --groups)
             if [[ $# -lt 2 ]]; then
-                echo "Error: --group requires a comma-separated list of group names." >&2
+                echo "Error: --groups requires a comma-separated list of group names." >&2
                 exit 1
             fi
             FILTER_GROUPS="$2"; shift 2 ;;

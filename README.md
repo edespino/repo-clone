@@ -74,11 +74,11 @@ Each line: `display_name|ssh_clone_url` or `display_name|ssh_clone_url|branch`
 | `--dry-run` | Preview what would be cloned without making changes |
 | `--list` | List available repos from the catalog and exit |
 | `--repos val,...` | Clone specific repos by number or display name (comma-separated) |
-| `--group name,...` | Clone all repos in the specified groups (comma-separated category names) |
+| `--groups name,...` | Clone all repos in the specified groups (comma-separated category names) |
 | `--help` | Show usage information |
 | `--version` | Show version number |
 
-`--repo` is accepted as an alias for `--repos`. Numbers correspond to positions shown by `--list`. Flags can appear before or after positional arguments.
+Numbers correspond to positions shown by `--list`. Flags can appear before or after positional arguments.
 
 ## Prerequisites
 

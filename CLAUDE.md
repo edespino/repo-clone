@@ -17,4 +17,4 @@
 - Single-file bash script (`repo-clone.sh`)
 - CLI flags parsed in a loop that collects positional args separately (flags can appear anywhere)
 - Catalog data stored in parallel arrays: `REPO_NAMES`, `REPO_URLS`, `REPO_BRANCHES`, `REPO_CATEGORIES`
-- Non-interactive selection via `--repos` (by number or name) and `--group` (by category)
+- Non-interactive selection via `--repos` (by number or name) and `--groups` (by category)
