@@ -6,6 +6,7 @@ CLONE_DIR="$HOME/workspace"
 DRY_RUN=false
 LIST_ONLY=false
 FILTER_REPOS=""
+FILTER_GROUPS=""
 
 # Catalog data arrays (parallel arrays — index N in each corresponds to the same entry)
 REPO_NAMES=()
@@ -191,6 +192,41 @@ resolve_repo_filter() {
     fi
 }
 
+resolve_group_filter() {
+    local filter="$1"
+    local found_any=false
+
+    # Split comma-separated group names
+    IFS=',' read -ra filter_groups <<< "$filter"
+
+    for gname in "${filter_groups[@]}"; do
+        # Trim whitespace
+        gname="${gname#"${gname%%[![:space:]]*}"}"
+        gname="${gname%"${gname##*[![:space:]]}"}"
+        [[ -z "$gname" ]] && continue
+
+        local matched=false
+        for i in "${!REPO_CATEGORIES[@]}"; do
+            if [[ "${REPO_CATEGORIES[$i]}" == "$gname" ]]; then
+                SELECTED+=("$i")
+                matched=true
+                found_any=true
+            fi
+        done
+
+        if [[ "$matched" == false ]]; then
+            echo "Error: No group found matching: $gname" >&2
+            echo "Use --list to see available groups." >&2
+            exit 1
+        fi
+    done
+
+    if [[ "$found_any" == false ]]; then
+        echo "Error: No group names provided to --group." >&2
+        exit 1
+    fi
+}
+
 derive_repo_dir() {
     local url="$1"
     # git@github.com:org/repo-name.git -> repo-name
@@ -288,22 +324,26 @@ Catalog source can be:
   Remote repo:  repo-clone.sh git@github.com:org/repo.git path/to/catalog.txt
 
 Options:
-  --dry-run          Preview what would be cloned without making changes
-  --list             List available repos from the catalog and exit
-  --repos val,...    Clone only the specified repos (comma-separated numbers or names)
-  --help             Show this help message
-  --version          Show version
+  --dry-run            Preview what would be cloned without making changes
+  --list               List available repos from the catalog and exit
+  --repos val,...      Clone specific repos by number or display name (comma-separated)
+  --group name,...     Clone all repos in the specified groups (comma-separated)
+  --help               Show this help message
+  --version            Show version
 
 Examples:
   repo-clone.sh --list catalog.txt
   repo-clone.sh --repos "Build Pipeline,Common Utils" catalog.txt
   repo-clone.sh --repos "1,3" catalog.txt
+  repo-clone.sh --group synx catalog.txt
+  repo-clone.sh --dry-run --group "synx,personal" catalog.txt
   repo-clone.sh --dry-run --repos "Build Pipeline" catalog.txt
 EOF
     exit "${1:-0}"
 }
 
-# Parse --flags
+# Parse flags and collect positional args (flags can appear anywhere)
+POSITIONAL=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run) DRY_RUN=true; shift ;;
@@ -314,6 +354,12 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             FILTER_REPOS="$2"; shift 2 ;;
+        --group)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --group requires a comma-separated list of group names." >&2
+                exit 1
+            fi
+            FILTER_GROUPS="$2"; shift 2 ;;
         --help) usage 0 ;;
         --version) echo "repo-clone $VERSION"; exit 0 ;;
         --test-parse)
@@ -333,20 +379,20 @@ while [[ $# -gt 0 ]]; do
             done
             exit 0
             ;;
-        --) shift; break ;;
+        --) shift; POSITIONAL+=("$@"); break ;;
         -*) echo "Unknown option: $1" >&2; usage 1 ;;
-        *) break ;;
+        *) POSITIONAL+=("$1"); shift ;;
     esac
 done
 
 # Determine catalog source
-if [[ $# -eq 0 ]]; then
+if [[ ${#POSITIONAL[@]} -eq 0 ]]; then
     echo "Error: No catalog source provided." >&2
     usage 1
 fi
 
-CATALOG_SOURCE="$1"
-CATALOG_PATH="${2:-}"
+CATALOG_SOURCE="${POSITIONAL[0]}"
+CATALOG_PATH="${POSITIONAL[1]:-}"
 
 # Detect remote vs local
 if [[ "$CATALOG_SOURCE" == git@*:*.git ]]; then
@@ -386,6 +432,8 @@ fi
 
 if [[ -n "$FILTER_REPOS" ]]; then
     resolve_repo_filter "$FILTER_REPOS"
+elif [[ -n "$FILTER_GROUPS" ]]; then
+    resolve_group_filter "$FILTER_GROUPS"
 else
     display_menu
     read_selection "${#REPO_NAMES[@]}"

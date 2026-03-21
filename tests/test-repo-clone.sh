@@ -142,6 +142,42 @@ output=$("$REPO_ROOT/repo-clone.sh" --repos 2>&1) || true
 assert_contains "--repos without value shows error" "Error:" "$output"
 
 echo ""
+echo "=== --group Flag ==="
+
+# --group with valid group + dry-run
+output=$("$REPO_ROOT/repo-clone.sh" --dry-run --group "infra" "$FIXTURES/catalog-valid.txt" 2>&1)
+assert_contains "--group selects first infra repo" "Build Pipeline" "$output"
+assert_contains "--group selects second infra repo" "Deploy Tool" "$output"
+
+# --group with single-entry group + dry-run
+output=$("$REPO_ROOT/repo-clone.sh" --dry-run --group "libs" "$FIXTURES/catalog-valid.txt" 2>&1)
+assert_contains "--group libs selects Common Utils" "Common Utils" "$output"
+
+# --group with multiple groups + dry-run
+output=$("$REPO_ROOT/repo-clone.sh" --dry-run --group "infra,libs" "$FIXTURES/catalog-valid.txt" 2>&1)
+assert_contains "--group multi selects infra" "Build Pipeline" "$output"
+assert_contains "--group multi selects libs" "Common Utils" "$output"
+
+# --group with invalid group
+output=$("$REPO_ROOT/repo-clone.sh" --group "nonexistent" "$FIXTURES/catalog-valid.txt" 2>&1) || true
+assert_contains "--group invalid shows error" "Error: No group found matching" "$output"
+
+# --group without value
+output=$("$REPO_ROOT/repo-clone.sh" --group 2>&1) || true
+assert_contains "--group without value shows error" "Error:" "$output"
+
+echo ""
+echo "=== Flags Anywhere ==="
+
+# --list at end of args
+output=$("$REPO_ROOT/repo-clone.sh" "$FIXTURES/catalog-valid.txt" --list 2>&1)
+assert_contains "--list at end shows menu" "Build Pipeline" "$output"
+
+# --dry-run after catalog source with --repos
+output=$("$REPO_ROOT/repo-clone.sh" --repos "1" "$FIXTURES/catalog-valid.txt" --dry-run 2>&1)
+assert_contains "--dry-run at end works" "[dry-run]" "$output"
+
+echo ""
 echo "=== Summary ==="
 echo "Passed: $PASS"
 echo "Failed: $FAIL"
