@@ -222,7 +222,7 @@ resolve_group_filter() {
     done
 
     if [[ "$found_any" == false ]]; then
-        echo "Error: No group names provided to --group." >&2
+        echo "Error: No group names provided to --groups." >&2
         exit 1
     fi
 }
