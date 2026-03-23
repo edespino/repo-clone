@@ -2,7 +2,7 @@
 set -euo pipefail
 
 VERSION="1.1"
-CLONE_DIR="$HOME/workspace"
+CLONE_DIR="$HOME"
 DRY_RUN=false
 LIST_ONLY=false
 FILTER_REPOS=""
