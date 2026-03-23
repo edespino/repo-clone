@@ -92,7 +92,7 @@ display_menu() {
             echo "  [$cat]"
             last_category="$cat"
         fi
-        local entry="  $((i + 1))) ${REPO_NAMES[$i]}"
+        local entry="    $((i + 1))) ${REPO_NAMES[$i]}"
         if [[ -n "${REPO_BRANCHES[$i]}" ]]; then
             entry+=" (branch: ${REPO_BRANCHES[$i]})"
         fi
