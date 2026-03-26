@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="1.1"
+VERSION="1.2"
 CLONE_DIR="$HOME"
 DRY_RUN=false
 LIST_ONLY=false
@@ -47,6 +47,74 @@ parse_catalog() {
     done <<< "$content"
 }
 
+parse_yaml_catalog() {
+    local content="$1"
+
+    # Use awk to convert YAML repos into catalog format, then feed to parse_catalog
+    local catalog_text
+    catalog_text=$(awk '
+    /^github_org:/ { org = $2 }
+    /^repos:/ { in_repos = 1; next }
+
+    in_repos && /^  - name:/ {
+        if (name != "") process()
+        name = $3; grepo = ""; gbranch = ""; source = ""
+    }
+    in_repos && /^    github_repo:/ { grepo = $2 }
+    in_repos && /^    github_branch:/ { gbranch = $2 }
+    in_repos && /^    source:/ { source = $2 }
+
+    function process() {
+        if (grepo == "" || source == "") return
+        url = "git@github.com:" org "/" grepo ".git"
+        ns = split(source, sources, ",")
+        for (si = 1; si <= ns; si++) {
+            scat = sources[si]
+            if (!(scat in categories)) {
+                cat_order[++cat_count] = scat
+                categories[scat] = 1
+            }
+            entry = name "|" url
+            if (gbranch != "") entry = entry "|" gbranch
+            entry_count[scat]++
+            entry_list[scat, entry_count[scat]] = entry
+        }
+    }
+
+    END {
+        if (name != "") process()
+        # Sort category names
+        for (i = 1; i <= cat_count; i++) sorted[i] = cat_order[i]
+        for (i = 1; i <= cat_count; i++)
+            for (j = i + 1; j <= cat_count; j++)
+                if (sorted[i] > sorted[j]) {
+                    tmp = sorted[i]; sorted[i] = sorted[j]; sorted[j] = tmp
+                }
+        for (i = 1; i <= cat_count; i++) {
+            cat = sorted[i]
+            printf "[%s]\n", cat
+            # Sort entries within category
+            n = entry_count[cat]
+            for (a = 1; a <= n; a++) sorted_e[a] = entry_list[cat, a]
+            for (a = 1; a <= n; a++)
+                for (b = a + 1; b <= n; b++)
+                    if (sorted_e[a] > sorted_e[b]) {
+                        tmp = sorted_e[a]; sorted_e[a] = sorted_e[b]; sorted_e[b] = tmp
+                    }
+            for (a = 1; a <= n; a++) printf "%s\n", sorted_e[a]
+            printf "\n"
+        }
+    }
+    ' <<< "$content")
+
+    parse_catalog "$catalog_text"
+}
+
+is_yaml_catalog() {
+    local path="$1"
+    [[ "$path" == *.yml || "$path" == *.yaml ]]
+}
+
 fetch_remote_catalog() {
     local tmpdir
     tmpdir=$(mktemp -d)
@@ -58,7 +126,13 @@ fetch_remote_catalog() {
         exit 1
     fi
 
-    (cd "$tmpdir/repo" && git sparse-checkout set "$CATALOG_PATH" 2>/dev/null)
+    local catalog_dir
+    catalog_dir=$(dirname "$CATALOG_PATH")
+    if [[ "$catalog_dir" == "." ]]; then
+        (cd "$tmpdir/repo" && git sparse-checkout disable 2>/dev/null)
+    else
+        (cd "$tmpdir/repo" && git sparse-checkout set "$catalog_dir" 2>/dev/null)
+    fi
 
     local catalog_file="$tmpdir/repo/$CATALOG_PATH"
     if [[ ! -f "$catalog_file" ]]; then
@@ -84,6 +158,14 @@ fetch_catalog() {
 }
 
 display_menu() {
+    # Find the widest name for alignment
+    local max_name_width=0
+    for i in "${!REPO_NAMES[@]}"; do
+        if [[ ${#REPO_NAMES[$i]} -gt $max_name_width ]]; then
+            max_name_width=${#REPO_NAMES[$i]}
+        fi
+    done
+
     local last_category=""
     for i in "${!REPO_NAMES[@]}"; do
         local cat="${REPO_CATEGORIES[$i]}"
@@ -92,7 +174,12 @@ display_menu() {
             echo "  [$cat]"
             last_category="$cat"
         fi
-        local entry="    $((i + 1))) ${REPO_NAMES[$i]}"
+        local display_url="${REPO_URLS[$i]}"
+        display_url="${display_url/git@github.com:/https://github.com/}"
+        display_url="${display_url%.git}"
+        local name_padding=$((max_name_width - ${#REPO_NAMES[$i]} + 2))
+        local entry
+        printf -v entry "    %3d) %s%*s— %s" "$((i + 1))" "${REPO_NAMES[$i]}" "$name_padding" "" "$display_url"
         if [[ -n "${REPO_BRANCHES[$i]}" ]]; then
             entry+=" (branch: ${REPO_BRANCHES[$i]})"
         fi
@@ -106,7 +193,7 @@ read_selection() {
     local selection
 
     while true; do
-        printf 'Select repos to clone (e.g. 1 3 4, 1,3,4, or "all"): '
+        printf 'Select repos to clone (e.g. 1 3 4, 1,3,4, group name, or "all"): '
         read -r selection < /dev/tty
 
         # Handle "all"
@@ -121,22 +208,38 @@ read_selection() {
         # Normalize: replace commas with spaces
         selection="${selection//,/ }"
 
-        # Validate each token
+        # Validate each token — numbers select by index, non-numbers match group names
         SELECTED=()
         local valid=true
         for token in $selection; do
-            if ! [[ "$token" =~ ^[0-9]+$ ]] || [[ "$token" -lt 1 || "$token" -gt "$max" ]]; then
-                echo "Invalid selection: $token (must be 1-$max)" >&2
-                valid=false
-                break
+            if [[ "$token" =~ ^[0-9]+$ ]]; then
+                if [[ "$token" -lt 1 || "$token" -gt "$max" ]]; then
+                    echo "Invalid selection: $token (must be 1-$max)" >&2
+                    valid=false
+                    break
+                fi
+                SELECTED+=("$((token - 1))")
+            else
+                # Match as group name
+                local matched=false
+                for gi in "${!REPO_CATEGORIES[@]}"; do
+                    if [[ "${REPO_CATEGORIES[$gi]}" == "$token" ]]; then
+                        SELECTED+=("$gi")
+                        matched=true
+                    fi
+                done
+                if [[ "$matched" == false ]]; then
+                    echo "Invalid selection: $token (not a number or group name)" >&2
+                    valid=false
+                    break
+                fi
             fi
-            SELECTED+=("$((token - 1))")
         done
 
         if [[ "$valid" == true && ${#SELECTED[@]} -gt 0 ]]; then
             return
         fi
-        echo "Please enter valid numbers between 1 and $max." >&2
+        echo "Please enter numbers (1-$max), group names, or \"all\"." >&2
     done
 }
 
@@ -369,7 +472,11 @@ while [[ $# -gt 0 ]]; do
             CATALOG_PATH="$1"
             shift
             CATALOG_CONTENT=$(fetch_catalog)
-            parse_catalog "$CATALOG_CONTENT"
+            if is_yaml_catalog "$CATALOG_PATH"; then
+                parse_yaml_catalog "$CATALOG_CONTENT"
+            else
+                parse_catalog "$CATALOG_CONTENT"
+            fi
             if [[ ${#REPO_NAMES[@]} -eq 0 ]]; then
                 echo "Error: No repos found in catalog." >&2
                 exit 1
@@ -418,7 +525,11 @@ if [[ -z "$CATALOG_CONTENT" ]]; then
     exit 1
 fi
 
-parse_catalog "$CATALOG_CONTENT"
+if is_yaml_catalog "$CATALOG_PATH"; then
+    parse_yaml_catalog "$CATALOG_CONTENT"
+else
+    parse_catalog "$CATALOG_CONTENT"
+fi
 
 if [[ ${#REPO_NAMES[@]} -eq 0 ]]; then
     echo "Error: No repos found in catalog." >&2

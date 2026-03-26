@@ -167,6 +167,29 @@ output=$("$REPO_ROOT/repo-clone.sh" --groups 2>&1) || true
 assert_contains "--groups without value shows error" "Error:" "$output"
 
 echo ""
+echo "=== YAML Catalog Parsing ==="
+
+# YAML catalog: 5 entries (gamma appears in both core and plugins)
+output=$("$REPO_ROOT/repo-clone.sh" --test-parse "$FIXTURES/catalog-yaml.yml" 2>&1)
+assert_line_count "yaml catalog has 5 entries" "5" "$output"
+assert_contains "yaml first entry is core category" "core|alpha|git@github.com:test-org/test-alpha.git|" "$output"
+assert_contains "yaml entry with github_branch" "core|beta|git@github.com:test-org/test-beta.git|develop" "$output"
+assert_contains "yaml multi-source in core" "core|gamma|git@github.com:test-org/test-gamma.git|" "$output"
+assert_contains "yaml multi-source in plugins" "plugins|gamma|git@github.com:test-org/test-gamma.git|" "$output"
+assert_contains "yaml plugins-only entry" "plugins|delta|git@github.com:test-org/test-delta.git|" "$output"
+
+# YAML --list shows categories
+output=$("$REPO_ROOT/repo-clone.sh" --list "$FIXTURES/catalog-yaml.yml" 2>&1)
+assert_contains "yaml --list shows core category" "[core]" "$output"
+assert_contains "yaml --list shows plugins category" "[plugins]" "$output"
+assert_contains "yaml --list shows alpha" "alpha" "$output"
+
+# YAML --groups filters correctly
+output=$("$REPO_ROOT/repo-clone.sh" --dry-run --groups "plugins" "$FIXTURES/catalog-yaml.yml" 2>&1)
+assert_contains "yaml --groups plugins selects gamma" "gamma" "$output"
+assert_contains "yaml --groups plugins selects delta" "delta" "$output"
+
+echo ""
 echo "=== Flags Anywhere ==="
 
 # --list at end of args

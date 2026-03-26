@@ -20,23 +20,23 @@ curl -sL https://raw.githubusercontent.com/edespino/repo-clone/main/repo-clone.s
 
 1. Fetches a catalog file (from a local path or a private Git repo via SSH)
 2. Displays an interactive numbered menu grouped by category
-3. You select which repos to clone (by number, comma-separated, or `all`)
-4. Selected repos are cloned into `~/workspace/`
+3. You select which repos to clone (by number, group name, comma-separated, or `all`)
+4. Selected repos are cloned into `~/`
 
 ```
 Fetching catalog...
 
   [infra]
-  1) Build Pipeline
-  2) Deploy Tool (branch: staging)
+      1) Build Pipeline  — https://github.com/org/build-pipeline
+      2) Deploy Tool     — https://github.com/org/deploy-tool (branch: staging)
 
   [libs]
-  3) Common Utils
+      3) Common Utils    — https://github.com/org/common-utils
 
-Select repos to clone (e.g. 1 3, 1,3, or "all"): 1 3
+Select repos to clone (e.g. 1 3 4, 1,3,4, group name, or "all"): 1 3
 
-Cloning Build Pipeline into ~/workspace/build-pipeline...  done
-Cloning Common Utils into ~/workspace/common-utils...  done
+Cloning Build Pipeline into ~/build-pipeline...  done
+Cloning Common Utils into ~/common-utils...  done
 
 Summary:
   Cloned: 2
@@ -67,6 +67,49 @@ Each line: `display_name|ssh_clone_url` or `display_name|ssh_clone_url|branch`
 | `ssh_clone_url` | Yes | SSH clone URL (`git@github.com:...`) |
 | `branch` | No | Specific branch to clone (default branch if omitted) |
 
+### YAML Format
+
+Files ending in `.yml` or `.yaml` are parsed automatically. This is useful when a repo already maintains a structured registry of repositories (e.g., `upstream/repos.yml` in the build pipeline repo).
+
+```yaml
+github_org: Synx-Data-Labs
+
+repos:
+  - name: database
+    github_repo: hashdata-cloud
+    source: enterprise
+
+  - name: gpbackup
+    github_repo: hashdata-gpbackup
+    source: enterprise,lightning
+
+  - name: pgvector-enterprise
+    github_repo: hashdata-pgvector
+    github_branch: support_cloud_service
+    source: enterprise
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `github_org` | Yes | Top-level field — GitHub organization used to construct clone URLs |
+| `name` | Yes | Display name shown in the menu |
+| `github_repo` | Yes | Repository name under `github_org` |
+| `source` | Yes | Category grouping — comma-separated values place the repo in multiple groups |
+| `github_branch` | No | Specific branch to clone (default branch if omitted) |
+
+Categories and entries are sorted alphabetically in the output. Example usage:
+
+```bash
+# List repos from the build pipeline's upstream registry
+./repo-clone.sh --list git@github.com:Synx-Data-Labs/synxdb-build-pipeline.git upstream/repos.yml
+
+# Clone all enterprise repos
+./repo-clone.sh --groups enterprise git@github.com:Synx-Data-Labs/synxdb-build-pipeline.git upstream/repos.yml
+
+# Dry-run for lightning group
+./repo-clone.sh --dry-run --groups lightning git@github.com:Synx-Data-Labs/synxdb-build-pipeline.git upstream/repos.yml
+```
+
 ## Options
 
 | Flag | Description |
@@ -90,8 +133,8 @@ The script checks for loaded SSH keys at startup and exits with guidance if none
 
 ## Behavior
 
-- All repos are cloned into `~/workspace/<repo-name>`
-- `~/workspace/` is created automatically if it does not exist
+- All repos are cloned into `~/<repo-name>`
+- The home directory is used as the default clone target
 - If a repo directory already exists, it is skipped with a warning
 - Failed clones are reported but do not stop the remaining clones
 - A summary of cloned/skipped/failed repos is printed at the end

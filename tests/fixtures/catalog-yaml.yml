@@ -1,0 +1,23 @@
+github_org: test-org
+
+defaults:
+  upstream_branch: main
+  github_branch: upstream
+
+repos:
+  - name: alpha
+    github_repo: test-alpha
+    source: core
+
+  - name: beta
+    github_repo: test-beta
+    github_branch: develop
+    source: core
+
+  - name: gamma
+    github_repo: test-gamma
+    source: core,plugins
+
+  - name: delta
+    github_repo: test-delta
+    source: plugins
