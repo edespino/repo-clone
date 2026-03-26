@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="1.2"
-CLONE_DIR="$HOME"
+VERSION="1.3"
+CLONE_DIR=""
 DRY_RUN=false
 LIST_ONLY=false
 FILTER_REPOS=""
@@ -427,6 +427,7 @@ Catalog source can be:
   Remote repo:  repo-clone.sh git@github.com:org/repo.git path/to/catalog.txt
 
 Options:
+  --clone-dir path     Set the directory to clone repos into (default: current directory)
   --dry-run            Preview what would be cloned without making changes
   --list               List available repos from the catalog and exit
   --repos val,...      Clone specific repos by number or name (comma-separated)
@@ -449,6 +450,12 @@ EOF
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --clone-dir)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --clone-dir requires a directory path." >&2
+                exit 1
+            fi
+            CLONE_DIR="$2"; shift 2 ;;
         --dry-run) DRY_RUN=true; shift ;;
         --list) LIST_ONLY=true; shift ;;
         --repos)
@@ -550,8 +557,23 @@ else
     read_selection "${#REPO_NAMES[@]}"
 fi
 
+# Default to current directory if not set via --clone-dir
+if [[ -z "$CLONE_DIR" ]]; then
+    CLONE_DIR="$PWD"
+fi
+
 echo ""
 if [[ "$DRY_RUN" == false ]]; then
+    printf "Clone into %s? [Y/n/path]: " "$CLONE_DIR"
+    read -r confirm < /dev/tty
+    if [[ -n "$confirm" && "$confirm" != [Yy] && "$confirm" != [Yy]es ]]; then
+        if [[ "$confirm" == [Nn] || "$confirm" == [Nn]o ]]; then
+            echo "Aborted."
+            exit 0
+        fi
+        # Treat as alternate path
+        CLONE_DIR="$confirm"
+    fi
     mkdir -p "$CLONE_DIR"
     clone_repos
 else

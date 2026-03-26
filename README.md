@@ -35,8 +35,10 @@ Fetching catalog...
 
 Select repos to clone (e.g. 1 3 4, 1,3,4, group name, or "all"): 1 3
 
-Cloning Build Pipeline into ~/build-pipeline...  done
-Cloning Common Utils into ~/common-utils...  done
+Clone into /current/working/directory? [Y/n/path]: Y
+
+Cloning Build Pipeline into /current/working/directory/build-pipeline...  done
+Cloning Common Utils into /current/working/directory/common-utils...  done
 
 Summary:
   Cloned: 2
@@ -114,6 +116,7 @@ Categories and entries are sorted alphabetically in the output. Example usage:
 
 | Flag | Description |
 |------|-------------|
+| `--clone-dir path` | Set the directory to clone repos into (default: current directory) |
 | `--dry-run` | Preview what would be cloned without making changes |
 | `--list` | List available repos from the catalog and exit |
 | `--repos val,...` | Clone specific repos by number or display name (comma-separated) |
@@ -133,8 +136,8 @@ The script checks for loaded SSH keys at startup and exits with guidance if none
 
 ## Behavior
 
-- All repos are cloned into `~/<repo-name>`
-- The home directory is used as the default clone target
+- All repos are cloned into `<clone-dir>/<repo-name>`
+- Defaults to the current working directory; override with `--clone-dir` or by entering a path at the confirmation prompt
 - If a repo directory already exists, it is skipped with a warning
 - Failed clones are reported but do not stop the remaining clones
 - A summary of cloned/skipped/failed repos is printed at the end
